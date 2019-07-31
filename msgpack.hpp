@@ -47,7 +47,6 @@ namespace msgpack {
 
         constexpr MutableView(char * data_, size_t size_) : data(data_), size(size_) { }
 
-        /// Currently constexpr mutable c array is not possible
         template <size_t size_>
         explicit constexpr MutableView(char (&data_)[size_]) : data(data_), size(size_) { }
     };
@@ -72,6 +71,44 @@ namespace msgpack {
             if (current_position - data.data + n > data.size)
                 throw LengthError("EOF", data.size - (current_position - data.data), n);
         }
+
+        constexpr auto load_uint8() {
+            is_end(1);
+            auto i = static_cast<unsigned char>(*++current_position);
+            return i;
+        }
+
+        constexpr auto load_uint16() {
+            is_end(2);
+            auto i = (static_cast<unsigned short>(static_cast<unsigned char>(*++current_position)) << 8u);
+            i += (static_cast<unsigned char>(*++current_position));
+            return i;
+        }
+
+        constexpr auto load_uint32() {
+            is_end(4);
+            auto i = static_cast<unsigned int>(static_cast<unsigned char>(*++current_position)) << 24u;
+            i += (static_cast<unsigned int>(static_cast<unsigned char>(*++current_position)) << 16u);
+            i += (static_cast<unsigned int>(static_cast<unsigned char>(*++current_position)) << 8u);
+            i += (static_cast<unsigned char>(*++current_position));
+            return i;
+        }
+
+        constexpr auto load_uint64() {
+            is_end(8);
+            auto i = (static_cast<unsigned long long>(static_cast<unsigned char>(*++current_position)) << 56u);
+            i += (static_cast<unsigned long long>(static_cast<unsigned char>(*++current_position)) << 48u);
+            i += (static_cast<unsigned long long>(static_cast<unsigned char>(*++current_position)) << 40u);
+            i += (static_cast<unsigned long long>(static_cast<unsigned char>(*++current_position)) << 32u);
+            i += (static_cast<unsigned long long>(static_cast<unsigned char>(*++current_position)) << 24u);
+            i += (static_cast<unsigned long long>(static_cast<unsigned char>(*++current_position)) << 16u);
+            i += (static_cast<unsigned long long>(static_cast<unsigned char>(*++current_position)) << 8u);
+            i += (static_cast<unsigned char>(*++current_position));
+            return i;
+        }
+
+
+
 
     public:
         explicit constexpr IStream(ConstView cv) : data(cv), current_position(data.data) { }
@@ -108,44 +145,38 @@ namespace msgpack {
             is_end();
             switch (*current_position) {
                 case '\xcc':
-                    is_end(1);
-                    i = static_cast<unsigned char>(*++current_position);
+                    i = load_uint8();
                     break;
                 case '\xcd':
-                    is_end(2);
-                    i = (static_cast<unsigned short>(static_cast<unsigned char>(*++current_position)) << 8u);
-                    i += (static_cast<unsigned char>(*++current_position));
+                    i = load_uint16();
                     break;
                 case '\xce':
-                    is_end(4);
-                    i = (static_cast<unsigned int>(static_cast<unsigned char>(*++current_position)) << 24u);
-                    i += (static_cast<unsigned int>(static_cast<unsigned char>(*++current_position)) << 16u);
-                    i += (static_cast<unsigned int>(static_cast<unsigned char>(*++current_position)) << 8u);
-                    i += (static_cast<unsigned char>(*++current_position));
+                    i = load_uint32();
                     break;
                 case '\xcf':
-                    is_end(8);
-                    i = (static_cast<unsigned long long>(static_cast<unsigned char>(*++current_position)) << 56u);
-                    /// @TODO prevent overflow
-                    i += (static_cast<unsigned long long>(static_cast<unsigned char>(*++current_position)) << 48u);
-                    i += (static_cast<unsigned long long>(static_cast<unsigned char>(*++current_position)) << 40u);
-                    i += (static_cast<unsigned long long>(static_cast<unsigned char>(*++current_position)) << 32u);
-                    i += (static_cast<unsigned long long>(static_cast<unsigned char>(*++current_position)) << 24u);
-                    i += (static_cast<unsigned long long>(static_cast<unsigned char>(*++current_position)) << 16u);
-                    i += (static_cast<unsigned long long>(static_cast<unsigned char>(*++current_position)) << 8u);
-                    i += (static_cast<unsigned char>(*++current_position));
+                    i = load_uint64();
                     break;
                 case '\xd0':
-                    is_end(1);
-                    i = static_cast<char>(*++current_position);
+                    i = static_cast<char>(load_uint8());
                     break;
                 case '\xd1':
-                    is_end(2);
-                    i = (static_cast<unsigned short>(static_cast<unsigned char>(*++current_position)) << 8u);
-                    i += (static_cast<unsigned char>(*++current_position));
+                    i = static_cast<short>(load_uint16());
+                    break;
+                case '\xd2':
+                    i = static_cast<int>(load_uint32());
+                    break;
+                case '\xd3':
+                    i = static_cast<long long>(load_uint64());
                     break;
                 default:
-                    throw TypeError("Expected int", *current_position);
+                    if ((static_cast<unsigned char>(*current_position) & 0x80) == 0x00) {
+                        i = static_cast<unsigned char>(*current_position);
+                    } else if ((static_cast<unsigned char>(*current_position) & 0xE0) == 0xE0) {
+                        /// TODO
+                        i = static_cast<unsigned char>(*current_position) & 0x1F;
+                    } else {
+                        throw TypeError("Expected integer", *current_position);
+                    }
             }
             ++current_position;
             return *this;
