@@ -1,6 +1,9 @@
 #pragma once
 
 #include <optional>
+#include <vector>
+#include <string>
+#include <tuple>
 
 namespace msgpack {
 
@@ -26,6 +29,27 @@ namespace msgpack {
 
     public:
         explicit LengthError(const char * msg_, size_t cur_, size_t exp_) : msg(msg_), current(cur_), expected(exp_) { }
+
+        const char * what() const noexcept override {
+            return msg;
+        }
+
+        size_t getExpected() const noexcept {
+            return expected;
+        }
+
+        size_t getActual() const noexcept {
+            return current;
+        }
+    };
+
+    class EOFError : public std::exception {
+        const char * msg;
+        size_t current;
+        size_t expected;
+
+    public:
+        explicit EOFError(const char * msg_, size_t cur_, size_t exp_) : msg(msg_), current(cur_), expected(exp_) { }
 
         const char * what() const noexcept override {
             return msg;
@@ -69,7 +93,7 @@ namespace msgpack {
 
         constexpr void is_end(size_t n = 1) const {
             if (current_position - data.data + n > data.size)
-                throw LengthError("EOF", data.size - (current_position - data.data), n);
+                throw EOFError("EOF", data.size - (current_position - data.data), n);
         }
 
         constexpr auto load_uint8() {
@@ -107,8 +131,10 @@ namespace msgpack {
             return i;
         }
 
-
-
+        template <typename... Args, std::size_t... Idx>
+        constexpr IStream& tuple_stream_helper(std::tuple<Args...> &tuple, std::index_sequence<Idx...>) {
+            return (*this >> ... >> std::get<Idx>(tuple));
+        }
 
     public:
         explicit constexpr IStream(ConstView cv) : data(cv), current_position(data.data) { }
@@ -169,16 +195,358 @@ namespace msgpack {
                     i = static_cast<long long>(load_uint64());
                     break;
                 default:
-                    if ((static_cast<unsigned char>(*current_position) & 0x80) == 0x00) {
+                    if ((static_cast<unsigned char>(*current_position) & 0x80u) == 0x00u) {
                         i = static_cast<unsigned char>(*current_position);
-                    } else if ((static_cast<unsigned char>(*current_position) & 0xE0) == 0xE0) {
-                        /// TODO
-                        i = static_cast<unsigned char>(*current_position) & 0x1F;
+                    } else if ((static_cast<unsigned char>(*current_position) & 0xE0u) == 0xE0u) {
+                        i = -static_cast<int>((1u << 5u) - static_cast<int>(static_cast<unsigned char>(*current_position) & 0x1Fu));
                     } else {
                         throw TypeError("Expected integer", *current_position);
                     }
             }
             ++current_position;
+            return *this;
+        }
+
+        constexpr IStream& operator>>(unsigned long long & i) {
+            is_end();
+            switch (*current_position) {
+                case '\xcc':
+                    i = load_uint8();
+                    break;
+                case '\xcd':
+                    i = load_uint16();
+                    break;
+                case '\xce':
+                    i = load_uint32();
+                    break;
+                case '\xcf':
+                    i = load_uint64();
+                    break;
+                case '\xd0':
+                    i = static_cast<char>(load_uint8());
+                    break;
+                case '\xd1':
+                    i = static_cast<short>(load_uint16());
+                    break;
+                case '\xd2':
+                    i = static_cast<int>(load_uint32());
+                    break;
+                case '\xd3':
+                    i = static_cast<long long>(load_uint64());
+                    break;
+                default:
+                    if ((static_cast<unsigned char>(*current_position) & 0x80u) == 0x00u) {
+                        i = static_cast<unsigned char>(*current_position);
+                    } else if ((static_cast<unsigned char>(*current_position) & 0xE0u) == 0xE0u) {
+                        i = -static_cast<int>((1u << 5u) - static_cast<int>(static_cast<unsigned char>(*current_position) & 0x1Fu));
+                    } else {
+                        throw TypeError("Expected integer", *current_position);
+                    }
+            }
+            ++current_position;
+            return *this;
+        }
+
+        constexpr IStream& operator>>(int & i) {
+            is_end();
+            switch (*current_position) {
+                case '\xcc':
+                    i = load_uint8();
+                    break;
+                case '\xcd':
+                    i = load_uint16();
+                    break;
+                case '\xce':
+                    i = load_uint32();
+                    break;
+                case '\xd0':
+                    i = static_cast<char>(load_uint8());
+                    break;
+                case '\xd1':
+                    i = static_cast<short>(load_uint16());
+                    break;
+                case '\xd2':
+                    i = static_cast<int>(load_uint32());
+                    break;
+                default:
+                    if ((static_cast<unsigned char>(*current_position) & 0x80u) == 0x00u) {
+                        i = static_cast<unsigned char>(*current_position);
+                    } else if ((static_cast<unsigned char>(*current_position) & 0xE0u) == 0xE0u) {
+                        i = -static_cast<int>((1u << 5u) - static_cast<int>(static_cast<unsigned char>(*current_position) & 0x1Fu));
+                    } else {
+                        throw TypeError("Expected integer", *current_position);
+                    }
+            }
+            ++current_position;
+            return *this;
+        }
+
+        constexpr IStream& operator>>(unsigned int & i) {
+            is_end();
+            switch (*current_position) {
+                case '\xcc':
+                    i = load_uint8();
+                    break;
+                case '\xcd':
+                    i = load_uint16();
+                    break;
+                case '\xce':
+                    i = load_uint32();
+                    break;
+                case '\xd0':
+                    i = static_cast<char>(load_uint8());
+                    break;
+                case '\xd1':
+                    i = static_cast<short>(load_uint16());
+                    break;
+                case '\xd2':
+                    i = static_cast<int>(load_uint32());
+                    break;
+                default:
+                    if ((static_cast<unsigned char>(*current_position) & 0x80u) == 0x00u) {
+                        i = static_cast<unsigned char>(*current_position);
+                    } else if ((static_cast<unsigned char>(*current_position) & 0xE0u) == 0xE0u) {
+                        i = -static_cast<int>((1u << 5u) - static_cast<int>(static_cast<unsigned char>(*current_position) & 0x1Fu));
+                    } else {
+                        throw TypeError("Expected integer", *current_position);
+                    }
+            }
+            ++current_position;
+            return *this;
+        }
+
+        constexpr IStream& operator>>(short & i) {
+            is_end();
+            switch (*current_position) {
+                case '\xcc':
+                    i = load_uint8();
+                    break;
+                case '\xcd':
+                    i = load_uint16();
+                    break;
+                case '\xd0':
+                    i = static_cast<char>(load_uint8());
+                    break;
+                case '\xd1':
+                    i = static_cast<short>(load_uint16());
+                    break;
+                default:
+                    if ((static_cast<unsigned char>(*current_position) & 0x80u) == 0x00u) {
+                        i = static_cast<unsigned char>(*current_position);
+                    } else if ((static_cast<unsigned char>(*current_position) & 0xE0u) == 0xE0u) {
+                        i = -static_cast<int>((1u << 5u) - static_cast<int>(static_cast<unsigned char>(*current_position) & 0x1Fu));
+                    } else {
+                        throw TypeError("Expected integer", *current_position);
+                    }
+            }
+            ++current_position;
+            return *this;
+        }
+
+        constexpr IStream& operator>>(unsigned short & i) {
+            is_end();
+            switch (*current_position) {
+                case '\xcc':
+                    i = load_uint8();
+                    break;
+                case '\xcd':
+                    i = load_uint16();
+                    break;
+                case '\xd0':
+                    i = static_cast<char>(load_uint8());
+                    break;
+                case '\xd1':
+                    i = static_cast<short>(load_uint16());
+                    break;
+                default:
+                    if ((static_cast<unsigned char>(*current_position) & 0x80u) == 0x00u) {
+                        i = static_cast<unsigned char>(*current_position);
+                    } else if ((static_cast<unsigned char>(*current_position) & 0xE0u) == 0xE0u) {
+                        i = -static_cast<int>((1u << 5u) - static_cast<int>(static_cast<unsigned char>(*current_position) & 0x1Fu));
+                    } else {
+                        throw TypeError("Expected integer", *current_position);
+                    }
+            }
+            ++current_position;
+            return *this;
+        }
+
+        constexpr IStream& operator>>(signed char & i) {
+            is_end();
+            switch (*current_position) {
+                case '\xcc':
+                    i = load_uint8();
+                    break;
+                case '\xd0':
+                    i = static_cast<char>(load_uint8());
+                    break;
+                default:
+                    if ((static_cast<unsigned char>(*current_position) & 0x80u) == 0x00u) {
+                        i = static_cast<unsigned char>(*current_position);
+                    } else if ((static_cast<unsigned char>(*current_position) & 0xE0u) == 0xE0u) {
+                        i = -static_cast<int>((1u << 5u) - static_cast<int>(static_cast<unsigned char>(*current_position) & 0x1Fu));
+                    } else {
+                        throw TypeError("Expected integer", *current_position);
+                    }
+            }
+            ++current_position;
+            return *this;
+        }
+
+        constexpr IStream& operator>>(unsigned char & i) {
+            is_end();
+            switch (*current_position) {
+                case '\xcc':
+                    i = load_uint8();
+                    break;
+                case '\xd0':
+                    i = static_cast<char>(load_uint8());
+                    break;
+                default:
+                    if ((static_cast<unsigned char>(*current_position) & 0x80u) == 0x00u) {
+                        i = static_cast<unsigned char>(*current_position);
+                    } else if ((static_cast<unsigned char>(*current_position) & 0xE0u) == 0xE0u) {
+                        i = -static_cast<int>((1u << 5u) -
+                                              static_cast<int>(static_cast<unsigned char>(*current_position) & 0x1Fu));
+                    } else {
+                        throw TypeError("Expected integer", *current_position);
+                    }
+            }
+            ++current_position;
+            return *this;
+        }
+
+        constexpr IStream& operator>>(float & i) {
+            is_end();
+            switch (*current_position) {
+                case '\xca': {
+                    auto bin_val = load_uint32();
+                    static_assert(sizeof(bin_val) == sizeof(i));
+                    i = reinterpret_cast<decltype(i) &>(bin_val);
+                }
+                    break;
+                default:
+                    throw TypeError("Expected float", *current_position);
+            }
+            ++current_position;
+            return *this;
+        }
+
+        constexpr IStream& operator>>(double & i) {
+            is_end();
+            switch (*current_position) {
+                case '\xca': {
+                    auto bin_val = load_uint64();
+                    static_assert(sizeof(bin_val) == sizeof(i));
+                    i = reinterpret_cast<decltype(i) &>(bin_val);
+                }
+                    break;
+                default:
+                    throw TypeError("Expected double", *current_position);
+            }
+            ++current_position;
+            return *this;
+        }
+
+        IStream& operator>>(std::string & s) {
+            is_end();
+            size_t size = 0;
+            switch (*current_position) {
+                case '\xd9':
+                    size = load_uint8();
+                    break;
+                case '\xda':
+                    size = load_uint16();
+                    break;
+                case '\xdb':
+                    size = load_uint32();
+                    break;
+                default:
+                    if ((static_cast<unsigned char>(*current_position) & 0xE0u) == 0xA0u) {
+                        size = static_cast<unsigned char>(*current_position) & 0x1Fu;
+                    } else {
+                        throw TypeError("Expected string", *current_position);
+                    }
+            }
+            ++current_position;
+            is_end(size);
+            s = std::string(current_position, size);
+            current_position += size;
+            return *this;
+        }
+
+        IStream& operator>>(std::vector<char> & s) {
+            is_end();
+            size_t size = 0;
+            switch (*current_position) {
+                case '\xc4':
+                    size = load_uint8();
+                    break;
+                case '\xc5':
+                    size = load_uint16();
+                    break;
+                case '\xc6':
+                    size = load_uint32();
+                    break;
+                default:
+                    throw TypeError("Expected binary", *current_position);
+            }
+            ++current_position;
+            is_end(size);
+            s = std::vector<char>(current_position, current_position + size);
+            current_position += size;
+            return *this;
+        }
+
+        template<typename... Args>
+        constexpr IStream& operator>>(std::tuple<Args&...> tuple) {
+            is_end();
+            size_t size = 0;
+            switch (*current_position) {
+                case '\xdc':
+                    size = load_uint16();
+                    break;
+                case '\xdd':
+                    size = load_uint32();
+                    break;
+                default:
+                    if ((static_cast<unsigned char>(*current_position) & 0xF0u) == 0x90u) {
+                        size = static_cast<unsigned char>(*current_position) & 0x0Fu;
+                    } else {
+                        throw TypeError("Expected array", *current_position);
+                    }
+            }
+            ++current_position;
+            if (size != sizeof...(Args)) {
+                throw LengthError("Bad array size", size, sizeof...(Args));
+            }
+            tuple_stream_helper(tuple, std::index_sequence_for<Args...>{});
+            return *this;
+        }
+
+        template<typename... Args>
+        constexpr IStream& operator>>(std::tuple<Args...> &tuple) {
+            is_end();
+            size_t size = 0;
+            switch (*current_position) {
+                case '\xdc':
+                    size = load_uint16();
+                    break;
+                case '\xdd':
+                    size = load_uint32();
+                    break;
+                default:
+                    if ((static_cast<unsigned char>(*current_position) & 0xF0u) == 0x90u) {
+                        size = static_cast<unsigned char>(*current_position) & 0x0Fu;
+                    } else {
+                        throw TypeError("Expected array", *current_position);
+                    }
+            }
+            ++current_position;
+            if (size != sizeof...(Args)) {
+                throw LengthError("Bad array size", size, sizeof...(Args));
+            }
+            tuple_stream_helper(tuple, std::index_sequence_for<Args...>{});
             return *this;
         }
     };
