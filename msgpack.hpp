@@ -613,7 +613,12 @@ namespace msgpack {
         }
 
         constexpr OStream& operator<<(long long i) {
-            auto ui = static_cast<unsigned long long>(i) & ((1ull << 63u) - 1u);
+            unsigned long long ui = 0;
+            if (i >= 0) {
+                ui = i;
+            } else {
+                ui = 0ull - i - 1u;
+            }
             if (ui >= 1ull << 31u) {
                 data.push_back('\xd3');
                 push_uint64(static_cast<unsigned long long>(i));
@@ -653,7 +658,12 @@ namespace msgpack {
         }
 
         constexpr OStream& operator<<(int i) {
-            auto ui = static_cast<unsigned int>(i) & ((1ull << 63u) - 1u);
+            unsigned int ui = 0;
+            if (i >= 0) {
+                ui = i;
+            } else {
+                ui = 0u - i - 1u;
+            }
             if (ui >= 1u << 15u) {
                 data.push_back('\xd2');
                 push_uint32(static_cast<unsigned int>(static_cast<int>(i)));
@@ -687,7 +697,12 @@ namespace msgpack {
         }
 
         constexpr OStream& operator<<(short i) {
-            auto ui = static_cast<unsigned short>(i) & ((1ull << 63u) - 1u);
+            unsigned short ui = 0;
+            if (i >= 0) {
+                ui = i;
+            } else {
+                ui = 0u - i - 1u;
+            }
             if (ui >= 1u << 7u) {
                 data.push_back('\xd1');
                 push_uint16(static_cast<unsigned short>(static_cast<short>(i)));
@@ -715,7 +730,12 @@ namespace msgpack {
         }
 
         constexpr OStream& operator<<(char i) {
-            auto ui = static_cast<unsigned char>(i) & ((1ull << 63u) - 1u);
+            unsigned char ui = 0;
+            if (i >= 0) {
+                ui = i;
+            } else {
+                ui = 0u - i - 1u;
+            }
             if (ui >= 1u << 4u) {
                 data.push_back('\xd0');
                 push_uint8(static_cast<unsigned char>(static_cast<char>(i)));
@@ -739,27 +759,14 @@ namespace msgpack {
         constexpr OStream& operator<<(float i) {
             data.push_back('\xca');
             static_assert(sizeof(unsigned int) == sizeof(i));
-            auto ui = reinterpret_cast<unsigned int&>(i);
-            data.push_back(static_cast<unsigned char>((ui >> 24u) & ((1u << 8u) - 1u)));
-            data.push_back(static_cast<unsigned char>((ui >> 16u) & ((1u << 8u) - 1u)));
-            data.push_back(static_cast<unsigned char>((ui >> 8u) & ((1u << 8u) - 1u)));
-            data.push_back(static_cast<unsigned char>(ui & ((1u << 8u) - 1u)));
-
+            push_uint32(reinterpret_cast<unsigned int&>(i));
             return *this;
         }
 
         constexpr OStream& operator<<(double i) {
             data.push_back('\xcb');
             static_assert(sizeof(unsigned long long) == sizeof(i));
-            auto ui = reinterpret_cast<unsigned long long&>(i);
-            data.push_back(static_cast<unsigned char>((ui >> 56u) & ((1ull << 8u) - 1ull)));
-            data.push_back(static_cast<unsigned char>((ui >> 48u) & ((1ull << 8u) - 1ull)));
-            data.push_back(static_cast<unsigned char>((ui >> 40u) & ((1ull << 8u) - 1ull)));
-            data.push_back(static_cast<unsigned char>((ui >> 32u) & ((1ull << 8u) - 1ull)));
-            data.push_back(static_cast<unsigned char>((ui >> 24u) & ((1u << 8u) - 1u)));
-            data.push_back(static_cast<unsigned char>((ui >> 16u) & ((1u << 8u) - 1u)));
-            data.push_back(static_cast<unsigned char>((ui >> 8u) & ((1u << 8u) - 1u)));
-            data.push_back(static_cast<unsigned char>(ui & ((1u << 8u) - 1u)));
+            push_uint64(reinterpret_cast<unsigned long long&>(i));
             return *this;
         }
 
