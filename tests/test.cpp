@@ -40,18 +40,43 @@ void kek() {
     std::cerr << a << ' ' << f << std::endl;
 }
 
-int main() {
-    kek();
-    static_assert(sum() == 3);
+void ostream_test() {
+    char data[10]="\0\0\0\0\0\0\0\0";
+    MutableView mc(data);
+    OStream os(mc);
+    os << 257ull;
+    std::cout << (int)data[0] << std::endl;
+    std::cout << (int)data[1] << std::endl;
+    std::cout << (int)data[2] << std::endl;
+}
 
-    std::cerr << example() << std::endl;
-
-    std::string data = "\xA6\x61\x62\x63\x64\x65\x66";
-    ConstView cv(data.data(), data.size());
+constexpr auto kek1() {
+    char data[100]{};
+    MutableView mv(data);
+    OStream os(mv);
+    os << std::tuple(1, 2, 3, 4, 5, 100, 10000);
+    ConstView cv(data);
     IStream is(cv);
-    std::string kek;
-    is >> kek;
-    std::cerr << kek << std::endl;
+    int a=0, b=0, c=0, d=0, e=0, f=0, g=0;
+    is >> std::tie(a, b, c, d, e, f, g);
+    return a + b + c + d + e + f + g;
+}
+
+int main() {
+    ostream_test();
+    static_assert(kek1() == 10115);
+
+//    kek();
+//    static_assert(sum() == 3);
+//
+//    std::cerr << example() << std::endl;
+//
+//    std::string data = "\xA6\x61\x62\x63\x64\x65\x66";
+//    ConstView cv(data.data(), data.size());
+//    IStream is(cv);
+//    std::string kek;
+//    is >> kek;
+//    std::cerr << kek << std::endl;
 
 //    static_assert(example() == -100, "I am not god");
 }
