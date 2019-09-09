@@ -5,7 +5,18 @@
 #include <string>
 #include <tuple>
 
-namespace msgpack {
+namespace {
+    union DHelper {
+        unsigned long long u;
+        float f;
+    };
+    union FHelper {
+        unsigned int u;
+        float f;
+    };
+}
+
+namespace msgpackcpp {
 
     class TypeError : public std::exception {
         const char * msg;
@@ -432,9 +443,10 @@ namespace msgpack {
             check_eof();
             switch (*current_position) {
                 case '\xca': {
-                    auto bin_val = load_uint32();
-                    static_assert(sizeof(bin_val) == sizeof(i));
-                    i = reinterpret_cast<decltype(i) &>(bin_val);
+                    FHelper bin_val{};
+                    bin_val.u = load_uint32();
+                    static_assert(sizeof(bin_val.u) == sizeof(i));
+                    i = bin_val.f;
                 }
                     break;
                 default:
@@ -448,9 +460,10 @@ namespace msgpack {
             check_eof();
             switch (*current_position) {
                 case '\xcb': {
-                    auto bin_val = load_uint64();
-                    static_assert(sizeof(bin_val) == sizeof(i));
-                    i = reinterpret_cast<decltype(i) &>(bin_val);
+                    DHelper bin_val{};
+                    bin_val.u = load_uint32();
+                    static_assert(sizeof(bin_val.u) == sizeof(i));
+                    i = bin_val.f;
                 }
                     break;
                 default:
@@ -633,7 +646,7 @@ namespace msgpack {
                 push_uint8(static_cast<unsigned char>(static_cast<char>(i)));
             } else {
                 auto uis = static_cast<unsigned char>(static_cast<char>(i));
-                data.push_back(static_cast<unsigned char>((uis & 0x0Fu) | ((uis >> 3u) & 0xF0)));
+                data.push_back(uis);
             }
             return *this;
         }
@@ -675,7 +688,7 @@ namespace msgpack {
                 push_uint8(static_cast<unsigned char>(static_cast<char>(i)));
             } else {
                 auto uis = static_cast<unsigned char>(static_cast<char>(i));
-                data.push_back(static_cast<unsigned char>((uis & 0x0Fu) | ((uis >> 3u) & 0xF0)));
+                data.push_back(uis);
             }
             return *this;
         }
@@ -711,7 +724,7 @@ namespace msgpack {
                 push_uint8(static_cast<unsigned char>(static_cast<char>(i)));
             } else {
                 auto uis = static_cast<unsigned char>(static_cast<char>(i));
-                data.push_back(static_cast<unsigned char>((uis & 0x0Fu) | ((uis >> 3u) & 0xF0)));
+                data.push_back(uis);
             }
             return *this;
         }
@@ -741,7 +754,7 @@ namespace msgpack {
                 push_uint8(static_cast<unsigned char>(static_cast<char>(i)));
             } else {
                 auto uis = static_cast<unsigned char>(static_cast<char>(i));
-                data.push_back(static_cast<unsigned char>((uis & 0x0Fu) | ((uis >> 3u) & 0xF0)));
+                data.push_back(uis);
             }
             return *this;
         }
@@ -758,15 +771,19 @@ namespace msgpack {
 
         constexpr OStream& operator<<(float i) {
             data.push_back('\xca');
-            static_assert(sizeof(unsigned int) == sizeof(i));
-            push_uint32(reinterpret_cast<unsigned int&>(i));
+            FHelper f{};
+            f.f = i;
+            static_assert(sizeof(f.u) == sizeof(i));
+            push_uint32(f.u);
             return *this;
         }
 
         constexpr OStream& operator<<(double i) {
             data.push_back('\xcb');
-            static_assert(sizeof(unsigned long long) == sizeof(i));
-            push_uint64(reinterpret_cast<unsigned long long&>(i));
+            DHelper f{};
+            f.f = i;
+            static_assert(sizeof(f.u) == sizeof(i));
+            push_uint64(f.u);
             return *this;
         }
 

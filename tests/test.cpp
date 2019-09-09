@@ -1,9 +1,9 @@
 #include <iostream>
 #include <vector>
 
-#include "msgpack.hpp"
+#include "msgpackcpp.hpp"
 
-using namespace msgpack;
+using namespace msgpackcpp;
 
 constexpr long long example() {
     constexpr const char * data = "\xc2\xce\x05\xf5\xe1\x00\xc3\xd0\x9c\xe0 abcdefghi";
